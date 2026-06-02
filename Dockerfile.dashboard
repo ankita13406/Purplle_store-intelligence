@@ -1,0 +1,26 @@
+FROM python:3.11-slim
+WORKDIR /app
+RUN pip install --no-cache-dir httpx uvicorn fastapi
+COPY dashboard/ ./dashboard/
+# Tiny FastAPI server that serves the static dashboard
+RUN cat > serve.py << 'EOF'
+import os
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
+app = FastAPI()
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    with open("dashboard/index.html") as f:
+        html = f.read()
+    api_url = os.getenv("API_URL", "http://localhost:8000")
+    html = html.replace("window.location.origin", f'"{api_url}"')
+    return HTMLResponse(html)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=3000)
+EOF
+CMD ["python", "serve.py"]

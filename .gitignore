@@ -1,0 +1,66 @@
+# Virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# YOLO model weights (large, download automatically)
+*.pt
+*.onnx
+*.engine
+
+# Video files (challenge rules: must not be committed)
+data/clips/
+*.mp4
+*.avi
+*.mkv
+
+# Generated event output
+data/events.jsonl
+data/events_test.jsonl
+data/events.rejected.jsonl
+data/events_test.rejected.jsonl
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+pgdata/
+
+# Logs
+*.log
+
+# Excel source file
+*.xlsx
+
+# Local database
+store_intelligence.db
+
+# Data folder — only keep layout and POS, exclude everything else
+data/clips/
+data/events*.jsonl
+data/events*.rejected.jsonl
+data/*.db
+*.bak

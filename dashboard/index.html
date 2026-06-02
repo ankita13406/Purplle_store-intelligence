@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Store Intelligence — Live Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #faf5ff;
+    --surface:   #ffffff;
+    --surface2:  #f3e8ff;
+    --border:    #e9d5ff;
+    --border2:   #d8b4fe;
+
+    --purple-deep:   #6b21a8;
+    --purple-mid:    #7c3aed;
+    --purple-soft:   #a855f7;
+    --purple-pale:   #ede9fe;
+    --purple-xpale:  #faf5ff;
+
+    --pink:      #ec4899;
+    --pink-pale: #fce7f3;
+
+    --accent:    #7c3aed;
+    --accent-g:  #059669;
+    --accent-y:  #d97706;
+    --accent-r:  #dc2626;
+
+    --text:      #1e1b4b;
+    --text-2:    #6d28d9;
+    --text-3:    #a78bfa;
+
+    --crit:      #dc2626;
+    --warn:      #d97706;
+    --info:      #6b21a8;
+    --good:      #059669;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 18px 32px;
+    background: var(--purple-deep);
+    border-bottom: 3px solid var(--pink);
+    flex-shrink: 0;
+  }
+
+  .logo-block { display: flex; flex-direction: column; gap: 2px; }
+
+  .logo-title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    color: #ffffff;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    font-weight: 600;
+    color: #d8b4fe;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(236, 72, 153, 0.2);
+    border: 1px solid rgba(236, 72, 153, 0.5);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #f9a8d4;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .pulse-dot {
+    width: 7px; height: 7px;
+    background: var(--pink);
+    border-radius: 50%;
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(236,72,153,0.4); }
+    50%       { opacity: 0.6; box-shadow: 0 0 0 5px rgba(236,72,153,0); }
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .store-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #d8b4fe;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  select {
+    background: rgba(255,255,255,0.12);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.25);
+    padding: 8px 32px 8px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23d8b4fe' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+  }
+
+  select option { background: #4c1d95; color: #fff; }
+
+  /* ── MAIN CONTENT ── */
+  main {
+    flex: 1;
+    padding: 24px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow: auto;
+  }
+
+  /* ── KPI ROW ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--purple-mid);
+    border-radius: 14px 14px 0 0;
+  }
+
+  .kpi-card.green::before  { background: var(--good); }
+  .kpi-card.yellow::before { background: var(--warn); }
+  .kpi-card.red::before    { background: var(--crit); }
+  .kpi-card.pink::before   { background: var(--pink); }
+
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--purple-soft);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+
+  .kpi-value {
+    font-size: 50px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text);
+    letter-spacing: -2px;
+    transition: color 0.3s;
+  }
+
+  .kpi-value.flash { color: var(--purple-mid); }
+  .kpi-value.green  { color: var(--good); }
+  .kpi-value.yellow { color: var(--warn); }
+  .kpi-value.red    { color: var(--crit); }
+  .kpi-value.blue   { color: var(--purple-mid); }
+
+  .kpi-sub {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-3);
+    font-weight: 500;
+  }
+
+  /* Conversion ring */
+  .conv-wrap {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-top: 4px;
+  }
+
+  .conv-ring { position: relative; width: 78px; height: 78px; flex-shrink: 0; }
+  .conv-ring svg { transform: rotate(-90deg); }
+  .conv-ring .ring-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+
+  .conv-details { display: flex; flex-direction: column; gap: 4px; }
+  .conv-big {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -1.5px;
+    line-height: 1;
+  }
+
+  /* ── LOWER GRID ── */
+  .lower-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.2fr;
+    gap: 16px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--purple-soft);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--purple-mid);
+    flex-shrink: 0;
+  }
+
+  /* ── FUNNEL ── */
+  .funnel-list { display: flex; flex-direction: column; gap: 14px; }
+
+  .funnel-row { display: flex; flex-direction: column; gap: 6px; }
+
+  .funnel-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .funnel-stage-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .funnel-count-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--purple-deep);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .funnel-drop-label {
+    font-size: 12px;
+    color: var(--crit);
+    font-weight: 600;
+  }
+
+  .funnel-bar-track {
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .funnel-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--purple-mid) 0%, var(--pink) 100%);
+    transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  /* ── HEATMAP ── */
+  .heatmap-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .hz-row { display: flex; align-items: center; gap: 12px; }
+
+  .hz-name {
+    width: 90px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+  }
+
+  .hz-track {
+    flex: 1;
+    height: 10px;
+    background: var(--surface2);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .hz-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .hz-score-label {
+    width: 34px;
+    text-align: right;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--purple-deep);
+    flex-shrink: 0;
+  }
+
+  /* ── ANOMALIES ── */
+  .anomaly-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .anomaly-card {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    border-left: 4px solid var(--border2);
+  }
+
+  .anomaly-card.CRITICAL { border-left-color: var(--crit);  background: #fff1f2; }
+  .anomaly-card.WARN     { border-left-color: var(--warn);  background: #fffbeb; }
+  .anomaly-card.INFO     { border-left-color: var(--purple-mid); background: var(--purple-pale); }
+
+  .anomaly-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .severity-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+
+  .severity-badge.CRITICAL { background: #fee2e2; color: var(--crit); }
+  .severity-badge.WARN     { background: #fef3c7; color: var(--warn); }
+  .severity-badge.INFO     { background: var(--purple-pale); color: var(--purple-deep); }
+
+  .anomaly-type-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .anomaly-desc {
+    font-size: 13px;
+    color: #4b5563;
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+
+  .anomaly-action {
+    font-size: 12px;
+    color: #9ca3af;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .anomaly-action span { color: var(--purple-mid); font-weight: 600; }
+
+  .no-anomalies {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex: 1;
+    color: var(--good);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 24px 0;
+  }
+
+  .no-anomalies .check-icon {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: #d1fae5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+
+  /* ── EXECUTIVE SUMMARY CARD ── */
+  .exec-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .exec-stat {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    text-align: center;
+  }
+
+  .exec-stat-val {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--purple-deep);
+    letter-spacing: -1.5px;
+    line-height: 1.1;
+  }
+
+  .exec-stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--purple-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 4px;
+  }
+
+  /* Conversion funnel visual */
+  .conv-flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 20px;
+  }
+
+  .conv-flow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+  }
+
+  .conv-flow-box {
+    background: linear-gradient(135deg, var(--purple-mid), var(--pink));
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 12px 24px;
+    border-radius: 10px;
+    text-align: center;
+    width: 80%;
+    position: relative;
+  }
+
+  .conv-flow-box.narrow { width: 60%; }
+  .conv-flow-box.narrower { width: 44%; }
+
+  .conv-flow-box .cfl-count {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    display: block;
+  }
+
+  .conv-flow-box .cfl-label {
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.85;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .conv-flow-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px 0;
+    gap: 0;
+  }
+
+  .conv-flow-arrow .arrow-line {
+    width: 2px;
+    height: 16px;
+    background: var(--border2);
+  }
+
+  .conv-flow-arrow .arrow-drop {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--crit);
+    background: #fee2e2;
+    border-radius: 12px;
+    padding: 2px 10px;
+    margin: 2px 0;
+  }
+
+  .conv-flow-arrow .arrow-head {
+    width: 0; height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid var(--border2);
+  }
+
+  /* Drop-off highlight */
+  .dropoff-banner {
+    background: #fff1f2;
+    border: 1.5px solid #fecaca;
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .dropoff-number {
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--crit);
+    letter-spacing: -2px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .dropoff-text {
+    font-size: 14px;
+    color: #991b1b;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  .dropoff-text small {
+    display: block;
+    font-size: 12px;
+    font-weight: 400;
+    color: #b91c1c;
+    margin-top: 2px;
+  }
+
+  /* Recommendation */
+  .rec-box {
+    background: var(--purple-pale);
+    border: 1.5px solid var(--border2);
+    border-radius: 10px;
+    padding: 14px 18px;
+  }
+
+  .rec-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--purple-mid);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .rec-text {
+    font-size: 14px;
+    color: var(--purple-deep);
+    font-weight: 500;
+    line-height: 1.6;
+  }
+
+  /* Top zone highlight */
+  .top-zone-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, var(--purple-mid), var(--pink));
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 5px 14px;
+    border-radius: 20px;
+    margin-top: 10px;
+  }
+
+  /* ── INSIGHTS ── */
+  #insights-panel {
+    line-height: 1.9;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--purple-deep);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding: 12px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-shrink: 0;
+  }
+
+  .footer-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    color: #d8b4fe;
+    font-weight: 500;
+  }
+
+  .footer-item .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+  }
+
+  .dot-ok   { background: #34d399; }
+  .dot-warn { background: var(--warn); }
+  .dot-crit { background: var(--crit); }
+
+  #last-update {
+    margin-left: auto;
+    font-size: 13px;
+    color: #a78bfa;
+    font-family: 'JetBrains Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-block">
+    <div class="logo-title">Store Intelligence</div>
+    <div class="logo-sub">Real-Time Analytics Platform</div>
+  </div>
+
+  <div class="live-badge">
+    <div class="pulse-dot"></div>
+    Live
+  </div>
+
+  <div class="header-right">
+    <span class="store-label">Store</span>
+    <select id="storeSelect" onchange="changeStore(this.value)">
+      <option value="STORE_BLR_002">STORE_BLR_002 — Bangalore</option>
+      <option value="STORE_BLR_001">STORE_BLR_001</option>
+      <option value="STORE_MUM_001">STORE_MUM_001</option>
+      <option value="STORE_DEL_001">STORE_DEL_001</option>
+    </select>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main>
+
+  <!-- KPI ROW -->
+  <div class="kpi-row">
+
+    <div class="kpi-card">
+      <div class="kpi-label">Unique Visitors</div>
+      <div class="kpi-value blue" id="m-visitors">—</div>
+      <div class="kpi-sub" id="m-entries">today</div>
+    </div>
+
+    <div class="kpi-card green">
+      <div class="kpi-label">Conversion Rate</div>
+      <div class="conv-wrap">
+        <div class="conv-ring">
+          <svg viewBox="0 0 80 80" width="78" height="78">
+            <circle cx="40" cy="40" r="32" fill="none" stroke="#ede9fe" stroke-width="7"/>
+            <circle id="conv-arc" cx="40" cy="40" r="32"
+                    fill="none" stroke="#7c3aed" stroke-width="7"
+                    stroke-linecap="round"
+                    stroke-dasharray="201.1" stroke-dashoffset="201.1"
+                    style="transition: stroke-dashoffset 0.8s ease"/>
+          </svg>
+          <div class="ring-label" id="ring-pct">—</div>
+        </div>
+        <div class="conv-details">
+          <div class="conv-big" id="conv-pct">—</div>
+          <div class="kpi-sub" id="m-conv-label">— converted</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-card yellow">
+      <div class="kpi-label">Billing Queue Depth</div>
+      <div class="kpi-value" id="m-queue">—</div>
+      <div class="kpi-sub" id="m-abandon">abandon rate —</div>
+    </div>
+
+    <div class="kpi-card pink">
+      <div class="kpi-label">Avg Zone Dwell</div>
+      <div class="kpi-value" id="m-dwell">—</div>
+      <div class="kpi-sub">seconds per zone visit</div>
+    </div>
+
+  </div>
+
+  <!-- LOWER GRID -->
+  <div class="lower-grid">
+
+    <!-- FUNNEL -->
+    <div class="card">
+      <div class="card-title">
+        <div class="dot"></div>
+        Conversion Funnel
+      </div>
+      <div class="funnel-list" id="funnel-list">
+        <div style="color:var(--text-3);font-size:14px">Loading...</div>
+      </div>
+    </div>
+
+    <!-- HEATMAP -->
+    <div class="card">
+      <div class="card-title">
+        <div class="dot" style="background:var(--pink)"></div>
+        Zone Heatmap
+      </div>
+      <div class="heatmap-list" id="heatmap-list">
+        <div style="color:var(--text-3);font-size:14px">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ANOMALIES -->
+    <div class="card">
+      <div class="card-title">
+        <div class="dot" style="background:var(--warn)"></div>
+        Active Anomalies
+      </div>
+      <div class="anomaly-list" id="anomaly-list">
+        <div style="color:var(--text-3);font-size:14px">Loading...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <div class="card" style="margin-top:4px;">
+    <div class="card-title">
+      <div class="dot" style="background:var(--pink)"></div>
+      Executive Summary
+    </div>
+    <div id="summary-panel">
+      <div style="color:var(--text-3);font-size:14px">Loading...</div>
+    </div>
+  </div>
+
+  <!-- BUSINESS INSIGHTS -->
+  <div class="card">
+    <div class="card-title">
+      <div class="dot" style="background:var(--purple-soft)"></div>
+      Business Insights &amp; Recommendations
+    </div>
+    <div id="insights-panel">Loading insights...</div>
+  </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-item">
+    <div class="dot" id="f-db-dot"></div>
+    <span id="f-db-label">Database</span>
+  </div>
+  <div class="footer-item" id="f-stores">— stores</div>
+  <div class="footer-item" id="f-stale"></div>
+  <div id="last-update">—</div>
+</footer>
+
+<script>
+  const API_BASE = 'http://localhost:8000';
+  let currentStore = 'STORE_BLR_002';
+
+  function heatColor(score) {
+    if (score >= 80) return '#7c3aed';
+    if (score >= 60) return '#a855f7';
+    if (score >= 40) return '#ec4899';
+    if (score >= 20) return '#f97316';
+    return '#dc2626';
+  }
+
+  function changeStore(id) { currentStore = id; refresh(); }
+
+  function fmtMs(ms) {
+    if (!ms && ms !== 0) return '—';
+    return (ms / 1000).toFixed(1);
+  }
+
+  function fmtPct(f) {
+    if (f === null || f === undefined) return '—';
+    return (f * 100).toFixed(1) + '%';
+  }
+
+  function flash(el) {
+    el.classList.add('flash');
+    setTimeout(() => el.classList.remove('flash'), 350);
+  }
+
+  function setVal(id, val) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const s = String(val);
+    if (el.textContent !== s) { el.textContent = s; flash(el); }
+  }
+
+  async function get(path) {
+    const r = await fetch(`${API_BASE}${path}`);
+    if (!r.ok) throw new Error(`${path} → ${r.status}`);
+    return r.json();
+  }
+
+  async function fetchMetrics() {
+    const d = await get(`/stores/${currentStore}/metrics`);
+
+    setVal('m-visitors', d.unique_visitors ?? '—');
+    document.getElementById('m-entries').textContent = 'visitors today';
+
+    const pct = d.conversion_rate ?? 0;
+    const pctStr = (pct * 100).toFixed(1) + '%';
+    setVal('conv-pct', pctStr);
+    setVal('ring-pct', (pct * 100).toFixed(0) + '%');
+    const circ = 201.1;
+    document.getElementById('conv-arc').setAttribute(
+      'stroke-dashoffset', (circ * (1 - pct)).toFixed(2)
+    );
+    document.getElementById('m-conv-label').textContent =
+      `${d.unique_visitors ? Math.round(d.unique_visitors * pct) : 0} purchased`;
+
+    const q = d.queue_depth ?? 0;
+    setVal('m-queue', q);
+    const qEl = document.getElementById('m-queue');
+    qEl.className = 'kpi-value ' + (q >= 10 ? 'red' : q >= 5 ? 'yellow' : '');
+
+    document.getElementById('m-abandon').textContent =
+      `abandon rate ${fmtPct(d.abandonment_rate)}`;
+
+    setVal('m-dwell', fmtMs(d.avg_dwell_ms));
+  }
+
+  async function fetchFunnel() {
+    const d = await get(`/stores/${currentStore}/funnel`);
+    const container = document.getElementById('funnel-list');
+    const max = d.stages[0]?.count || 1;
+
+    container.innerHTML = d.stages.map((s) => {
+      const w = max > 0 ? (s.count / max * 100).toFixed(1) : 0;
+      const dropHtml = s.drop_off_pct > 0
+        ? `<span class="funnel-drop-label">▼ ${s.drop_off_pct}%</span>`
+        : '';
+      return `
+        <div class="funnel-row">
+          <div class="funnel-meta">
+            <span class="funnel-stage-name">${s.stage}</span>
+            <div style="display:flex;align-items:center;gap:10px">
+              ${dropHtml}
+              <span class="funnel-count-label">${s.count}</span>
+            </div>
+          </div>
+          <div class="funnel-bar-track">
+            <div class="funnel-bar-fill" style="width:${w}%"></div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function fetchHeatmap() {
+    const d = await get(`/stores/${currentStore}/heatmap`);
+    const container = document.getElementById('heatmap-list');
+
+    if (!d.zones || !d.zones.length) {
+      container.innerHTML = '<div style="color:var(--text-3);font-size:14px">No zone data yet</div>';
+      return;
+    }
+
+    container.innerHTML = d.zones.slice(0, 8).map(z => {
+      const score = z.normalised_score ?? 0;
+      const color = heatColor(score);
+      const conf = z.data_confidence === false
+        ? '<span style="font-size:10px;color:var(--warn);margin-left:4px;font-weight:700">LOW DATA</span>'
+        : '';
+      return `
+        <div class="hz-row">
+          <div class="hz-name" title="${z.zone_id}">${z.zone_id}${conf}</div>
+          <div class="hz-track">
+            <div class="hz-fill" style="width:${score}%;background:${color}"></div>
+          </div>
+          <div class="hz-score-label">${score.toFixed(0)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  async function fetchAnomalies() {
+    const d = await get(`/stores/${currentStore}/anomalies`);
+    const container = document.getElementById('anomaly-list');
+
+    if (!d.anomalies || !d.anomalies.length) {
+      container.innerHTML = `
+        <div class="no-anomalies">
+          <div class="check-icon">✓</div>
+          All systems normal
+        </div>`;
+      return;
+    }
+
+    const order = { CRITICAL: 0, WARN: 1, INFO: 2 };
+    const sorted = [...d.anomalies].sort((a, b) =>
+      (order[a.severity] ?? 3) - (order[b.severity] ?? 3)
+    );
+
+    container.innerHTML = sorted.map(a => `
+      <div class="anomaly-card ${a.severity}">
+        <div class="anomaly-header">
+          <span class="severity-badge ${a.severity}">${a.severity}</span>
+          <span class="anomaly-type-label">${a.anomaly_type.replace(/_/g, ' ')}</span>
+        </div>
+        <div class="anomaly-desc">${a.description}</div>
+        <div class="anomaly-action">
+          <span>→</span> ${a.suggested_action}
+        </div>
+      </div>`
+    ).join('');
+  }
+
+  async function fetchHealth() {
+    const d = await get('/health');
+
+    const dbDot = document.getElementById('f-db-dot');
+    const dbLabel = document.getElementById('f-db-label');
+    if (d.db_ok) {
+      dbDot.className = 'dot dot-ok';
+      dbLabel.textContent = 'Database OK';
+    } else {
+      dbDot.className = 'dot dot-crit';
+      dbLabel.textContent = 'Database ERROR';
+    }
+
+    document.getElementById('f-stores').textContent =
+      `${d.stores?.length ?? 0} store${d.stores?.length === 1 ? '' : 's'} connected`;
+
+    const stale = d.stores?.filter(s => s.stale_feed).length ?? 0;
+    const staleEl = document.getElementById('f-stale');
+    if (stale > 0) {
+      staleEl.innerHTML = `<div class="dot dot-warn"></div>&nbsp;${stale} stale feed${stale > 1 ? 's' : ''}`;
+      staleEl.style.color = 'var(--warn)';
+    } else {
+      staleEl.innerHTML = `<div class="dot dot-ok"></div>&nbsp;All feeds active`;
+      staleEl.style.color = '#d8b4fe';
+    }
+
+    document.getElementById('last-update').textContent =
+      'Updated ' + new Date().toLocaleTimeString();
+  }
+
+  /* ── EXECUTIVE SUMMARY (new) ── */
+  async function fetchSummary() {
+    const funnel  = await get(`/stores/${currentStore}/funnel`);
+    const heatmap = await get(`/stores/${currentStore}/heatmap`);
+
+    const entry    = funnel.stages[0]?.count || 0;
+    const billing  = funnel.stages[2]?.count || 0;
+    const purchase = funnel.stages[3]?.count || 0;
+
+    const conversion = entry > 0
+      ? ((purchase / entry) * 100).toFixed(1)
+      : 0;
+
+    const dropOff = entry - billing;
+
+    /* Top zone by visit_count if available, else by normalised_score */
+    let topZone = 'N/A';
+    let topZoneVisits = '';
+    if (heatmap.zones && heatmap.zones.length) {
+      const sorted = [...heatmap.zones].sort((a, b) => {
+        const va = a.visit_count ?? a.normalised_score ?? 0;
+        const vb = b.visit_count ?? b.normalised_score ?? 0;
+        return vb - va;
+      });
+      topZone = sorted[0].zone_id;
+      if (sorted[0].visit_count !== undefined) {
+        topZoneVisits = ` (${sorted[0].visit_count} visits)`;
+      }
+    }
+
+    /* Recommendation */
+    let recText = '';
+    let recIcon = '📊';
+    if (conversion < 20) {
+      recText = 'High pre-checkout drop-off detected. Investigate the customer journey between browsing and checkout — consider targeted promotions or staff nudges in high-dwell zones.';
+      recIcon = '🚨';
+    } else if (conversion < 40) {
+      recText = 'Moderate conversion. Checkout engagement can be improved — ensure billing queue is short and product placement near checkout is optimised.';
+      recIcon = '⚠️';
+    } else {
+      recText = 'Strong conversion performance. Maintain current layout and staffing. Monitor zone dwell times to identify any emerging drop-off patterns.';
+      recIcon = '✅';
+    }
+
+    /* Conversion flow visual */
+    const flowHTML = `
+      <div class="conv-flow">
+        <div class="conv-flow-step">
+          <div class="conv-flow-box">
+            <span class="cfl-count">${entry}</span>
+            <span class="cfl-label">Entered Store</span>
+          </div>
+        </div>
+        <div class="conv-flow-arrow">
+          <div class="arrow-line"></div>
+          <div class="arrow-drop">▼ ${entry - billing} dropped</div>
+          <div class="arrow-line"></div>
+          <div class="arrow-head"></div>
+        </div>
+        <div class="conv-flow-step">
+          <div class="conv-flow-box narrow">
+            <span class="cfl-count">${billing}</span>
+            <span class="cfl-label">Reached Billing</span>
+          </div>
+        </div>
+        <div class="conv-flow-arrow">
+          <div class="arrow-line"></div>
+          <div class="arrow-drop">▼ ${billing - purchase} dropped</div>
+          <div class="arrow-line"></div>
+          <div class="arrow-head"></div>
+        </div>
+        <div class="conv-flow-step">
+          <div class="conv-flow-box narrower">
+            <span class="cfl-count">${purchase}</span>
+            <span class="cfl-label">Purchased</span>
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById('summary-panel').innerHTML = `
+      <div class="exec-grid">
+        <div class="exec-stat">
+          <div class="exec-stat-val">${entry}</div>
+          <div class="exec-stat-label">Total Visitors</div>
+        </div>
+        <div class="exec-stat">
+          <div class="exec-stat-val" style="color:var(--pink)">${conversion}%</div>
+          <div class="exec-stat-label">Conversion Rate</div>
+        </div>
+        <div class="exec-stat">
+          <div class="exec-stat-val" style="color:var(--crit)">${dropOff}</div>
+          <div class="exec-stat-label">Pre-Checkout Drop-off</div>
+        </div>
+      </div>
+
+      ${flowHTML}
+
+      <div class="dropoff-banner">
+        <div class="dropoff-number">${dropOff}</div>
+        <div class="dropoff-text">
+          shoppers dropped before checkout
+          <small>That's ${entry > 0 ? ((dropOff / entry) * 100).toFixed(1) : 0}% of all visitors who never reached billing — a key retail KPI to monitor.</small>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;font-size:13px;color:var(--purple-soft);font-weight:600;">
+        Most engaged zone:
+        <span class="top-zone-pill">★ ${topZone}${topZoneVisits}</span>
+      </div>
+
+      <div class="rec-box">
+        <div class="rec-label">${recIcon} Smart Recommendation</div>
+        <div class="rec-text">${recText}</div>
+      </div>
+    `;
+  }
+
+  /* ── BUSINESS INSIGHTS ── */
+  async function fetchInsights() {
+    const funnel  = await get(`/stores/${currentStore}/funnel`);
+    const heatmap = await get(`/stores/${currentStore}/heatmap`);
+
+    const entry    = funnel.stages.find(x => x.stage.includes('Entry'))?.count || 0;
+    const billing  = funnel.stages.find(x => x.stage.includes('Billing'))?.count || 0;
+    const purchase = funnel.stages.find(x => x.stage.includes('Purchase'))?.count || 0;
+
+    const conversion = entry > 0
+      ? ((purchase / entry) * 100).toFixed(1)
+      : 0;
+
+    let topZone = 'N/A';
+    if (heatmap.zones && heatmap.zones.length) {
+      topZone = [...heatmap.zones]
+        .sort((a, b) => (b.normalised_score || 0) - (a.normalised_score || 0))[0].zone_id;
+    }
+
+    const dropOff = entry - billing;
+
+    let recommendation = '';
+    if (conversion < 20) {
+      recommendation = 'Conversion is low. Focus on moving shoppers from browsing zones to billing.';
+    } else if (conversion < 40) {
+      recommendation = 'Conversion is moderate. Checkout engagement can be improved.';
+    } else {
+      recommendation = 'Conversion performance is strong.';
+    }
+
+    document.getElementById('insights-panel').innerHTML = `
+      <b>Store Summary</b><br><br>
+      • ${entry} shoppers entered the store.<br>
+      • ${billing} shoppers reached the billing area.<br>
+      • ${purchase} completed a purchase.<br>
+      • Conversion rate: <b>${conversion}%</b>.<br>
+      • Biggest engagement zone: <b>${topZone}</b>.<br>
+      • ${dropOff} visitors dropped before billing.<br><br>
+      <b>Recommendation</b><br>
+      ${recommendation}
+    `;
+  }
+
+  async function refresh() {
+    await Promise.allSettled([
+      fetchMetrics(),
+      fetchFunnel(),
+      fetchHeatmap(),
+      fetchAnomalies(),
+      fetchHealth(),
+      fetchSummary(),
+      fetchInsights()
+    ]);
+  }
+
+  refresh();
+  setInterval(refresh, 5000);
+</script>
+</body>
+</html>
