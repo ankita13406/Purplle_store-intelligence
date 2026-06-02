@@ -35,7 +35,7 @@ curl http://localhost:8000/stores/ST1008/metrics
 
 ---
 
-## Instructions to Run (Hackathon Portal)
+## Instructions to Run 
 
 ### Prerequisites
 - Docker Desktop (or Docker + Docker Compose v2) installed
