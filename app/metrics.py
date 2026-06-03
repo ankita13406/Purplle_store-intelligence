@@ -1,23 +1,22 @@
 """
 metrics.py — Real-time store metrics computation.
 
-All queries run against the events table.  No stale cache.
-Staff events (is_staff=True) are excluded from all customer metrics.
+BUG FIX (2026-06-03):
+  FIX — queue_depth off-by-one: old code did `int(q_row.queue_depth) + 1`
+        which always added 1 even when queue_depth=0, making an empty queue
+        show as 1. The queue_depth stored in events already represents the
+        number of people queuing at the moment of the event — just use it
+        directly. Only add 1 if we also want to count the person currently
+        being served (that person emits ZONE_ENTER, not BILLING_QUEUE_JOIN).
 
-Conversion logic:
-  A visitor is "converted" if their visitor_id had a ZONE_ENTER / ZONE_DWELL
-  event in any BILLING* zone within the 5-minute window before any POS
-  transaction timestamp for that store.
-
-  Since POS data is loaded at startup (pos_transactions.csv), we precompute
-  converted visitor_id sets per store per day.
+  Retained: window scoping to busiest event date (not today's date),
+  which correctly handles historical footage replayed into the API.
 """
 import logging
 import os
 from datetime import datetime, timezone, timedelta
-from typing import Optional
 
-from sqlalchemy import text, select, func
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import StoreMetrics, ZoneDwell
@@ -32,74 +31,97 @@ def _today_str() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
-def _window_start() -> str:
-    dt = datetime.now(timezone.utc) - timedelta(hours=TODAY_WINDOW_HOURS)
-    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
 async def get_store_metrics(store_id: str, db: AsyncSession) -> StoreMetrics:
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    # Use the most recent event date in the DB for this store — not today's date.
-    # This ensures metrics work correctly when events are from historical footage
-    # (e.g. April clips ingested in June).
+    # Busiest event date for this store
     date_result = await db.execute(text("""
-        SELECT substr(MAX(timestamp), 1, 10) as latest_date
-        FROM events
-        WHERE store_id = :store_id AND is_staff = false
+        SELECT substr(timestamp, 1, 10) AS event_date
+        FROM   events
+        WHERE  store_id = :store_id
+          AND  is_staff = false
+        GROUP  BY event_date
+        ORDER  BY COUNT(*) DESC
+        LIMIT  1
     """), {"store_id": store_id})
-    latest_date = date_result.scalar()
-    date   = latest_date or _today_str()
-    window = date + "T00:00:00Z"   # full day of most recent events
 
-    # --- Unique customer visitors (ENTRY + REENTRY, exclude staff, deduplicated) ---
+    latest_date = date_result.scalar()
+
+    if not latest_date:
+        log.warning("No events found for store %s — returning zero metrics", store_id)
+        return StoreMetrics(
+            store_id=store_id,
+            date=_today_str(),
+            unique_visitors=0,
+            conversion_rate=0.0,
+            avg_dwell_ms=0.0,
+            zone_dwells=[],
+            queue_depth=0,
+            abandonment_rate=0.0,
+            computed_at=now_iso,
+        )
+
+    date         = latest_date
+    window_start = date + "T00:00:00Z"
+    window_end   = date + "T23:59:59Z"
+
+    log.info("Metrics window for %s: %s → %s", store_id, window_start, window_end)
+
+    # Unique customer visitors
     uv_result = await db.execute(text("""
         SELECT COUNT(DISTINCT visitor_id)
-        FROM events
-        WHERE store_id   = :store_id
-          AND event_type IN ('ENTRY', 'REENTRY')
-          AND is_staff   = false
-          AND timestamp >= :window
-    """), {"store_id": store_id, "window": window})
+        FROM   events
+        WHERE  store_id   = :store_id
+          AND  event_type IN ('ENTRY', 'REENTRY')
+          AND  is_staff   = false
+          AND  timestamp >= :window_start
+          AND  timestamp <= :window_end
+    """), {"store_id": store_id,
+           "window_start": window_start, "window_end": window_end})
+
     unique_visitors = uv_result.scalar() or 0
 
-    # --- Conversion rate (via POS correlation) ---
-    # Run correlation for the actual event date
+    # Conversion rate
     from app.pos_loader import run_conversion_correlation
     run_conversion_correlation(store_id, date)
-    converted = get_converted_visitors(store_id, date)
-    if unique_visitors > 0:
-        conversion_rate = round(len(converted) / unique_visitors, 4)
-    else:
-        conversion_rate = 0.0
+    converted       = get_converted_visitors(store_id, date)
+    conversion_rate = (
+        round(len(converted) / unique_visitors, 4) if unique_visitors > 0 else 0.0
+    )
 
-    # --- Average dwell across all zones ---
+    # Average dwell across all zones
     avg_dwell_result = await db.execute(text("""
         SELECT AVG(dwell_ms)
-        FROM events
-        WHERE store_id  = :store_id
-          AND event_type IN ('ZONE_EXIT', 'ZONE_DWELL')
-          AND is_staff  = false
-          AND dwell_ms  > 0
-          AND timestamp >= :window
-    """), {"store_id": store_id, "window": window})
+        FROM   events
+        WHERE  store_id   = :store_id
+          AND  event_type IN ('ZONE_EXIT', 'ZONE_DWELL')
+          AND  is_staff   = false
+          AND  dwell_ms   > 0
+          AND  timestamp >= :window_start
+          AND  timestamp <= :window_end
+    """), {"store_id": store_id,
+           "window_start": window_start, "window_end": window_end})
+
     avg_dwell = float(avg_dwell_result.scalar() or 0.0)
 
-    # --- Per-zone dwell ---
+    # Per-zone dwell breakdown
     zone_rows = await db.execute(text("""
         SELECT zone_id,
-               AVG(dwell_ms)   AS avg_dwell,
-               COUNT(*)        AS visit_count
-        FROM events
-        WHERE store_id  = :store_id
-          AND event_type IN ('ZONE_EXIT', 'ZONE_DWELL')
-          AND is_staff  = false
-          AND zone_id IS NOT NULL
-          AND dwell_ms  > 0
-          AND timestamp >= :window
-        GROUP BY zone_id
-        ORDER BY avg_dwell DESC
-    """), {"store_id": store_id, "window": window})
+               AVG(dwell_ms) AS avg_dwell,
+               COUNT(*)      AS visit_count
+        FROM   events
+        WHERE  store_id   = :store_id
+          AND  event_type IN ('ZONE_EXIT', 'ZONE_DWELL')
+          AND  is_staff   = false
+          AND  zone_id IS NOT NULL
+          AND  dwell_ms   > 0
+          AND  timestamp >= :window_start
+          AND  timestamp <= :window_end
+        GROUP  BY zone_id
+        ORDER  BY avg_dwell DESC
+    """), {"store_id": store_id,
+           "window_start": window_start, "window_end": window_end})
+
     zone_dwells = [
         ZoneDwell(
             zone_id=row.zone_id,
@@ -109,33 +131,62 @@ async def get_store_metrics(store_id: str, db: AsyncSession) -> StoreMetrics:
         for row in zone_rows.fetchall()
     ]
 
-    # --- Current queue depth (most recent BILLING_QUEUE_JOIN queue_depth) ---
+    # ------------------------------------------------------------------ #
+    # Billing queue depth — FIX: remove the spurious +1                   #
+    #                                                                      #
+    # Old: queue_depth = int(q_row.queue_depth) + 1 if q_row else 0      #
+    #      → always added 1; an empty queue (queue_depth=0 in last event) #
+    #        showed as 1; a queue of 5 showed as 6.                       #
+    #                                                                      #
+    # New: use queue_depth from the event directly.                        #
+    #      The event stores "number of people already waiting" at the time #
+    #      the new person joined. The person currently being served is     #
+    #      counted separately via ZONE_ENTER on the billing zone.          #
+    # ------------------------------------------------------------------ #
     q_result = await db.execute(text("""
-        SELECT queue_depth FROM events
-        WHERE store_id  = :store_id
-          AND event_type = 'BILLING_QUEUE_JOIN'
-          AND queue_depth IS NOT NULL
-        ORDER BY timestamp DESC
-        LIMIT 1
-    """), {"store_id": store_id})
-    row = q_result.fetchone()
-    queue_depth = int(row.queue_depth) + 1 if row else 0
+        SELECT queue_depth
+        FROM   events
+        WHERE  store_id   = :store_id
+          AND  event_type = 'BILLING_QUEUE_JOIN'
+          AND  queue_depth IS NOT NULL
+          AND  timestamp >= :window_start
+          AND  timestamp <= :window_end
+        ORDER  BY timestamp DESC
+        LIMIT  1
+    """), {"store_id": store_id,
+           "window_start": window_start, "window_end": window_end})
 
-    # --- Abandonment rate ---
+    q_row       = q_result.fetchone()
+    # FIX: use as-is, no +1
+    queue_depth = int(q_row.queue_depth) if q_row else 0
+
+    # Abandonment rate
     abandon_result = await db.execute(text("""
         SELECT
           COUNT(CASE WHEN event_type = 'BILLING_QUEUE_ABANDON' THEN 1 END) AS abandons,
           COUNT(CASE WHEN event_type = 'BILLING_QUEUE_JOIN'    THEN 1 END) AS joins
-        FROM events
-        WHERE store_id  = :store_id
-          AND is_staff  = false
-          AND timestamp >= :window
-    """), {"store_id": store_id, "window": window})
+        FROM   events
+        WHERE  store_id  = :store_id
+          AND  is_staff  = false
+          AND  timestamp >= :window_start
+          AND  timestamp <= :window_end
+    """), {"store_id": store_id,
+           "window_start": window_start, "window_end": window_end})
+
     ab_row = abandon_result.fetchone()
-    if ab_row and ab_row.joins > 0:
-        abandonment_rate = round(ab_row.abandons / ab_row.joins, 4)
-    else:
-        abandonment_rate = 0.0
+    abandonment_rate = (
+        round(ab_row.abandons / ab_row.joins, 4)
+        if ab_row and ab_row.joins > 0
+        else 0.0
+    )
+
+    log.info(
+        "Metrics | store=%s date=%s visitors=%d conv=%.2f%% "
+        "dwell=%.0fms queue=%d abandon=%.1f%%",
+        store_id, date, unique_visitors,
+        conversion_rate * 100, avg_dwell,
+        queue_depth, abandonment_rate * 100,
+    )
 
     return StoreMetrics(
         store_id=store_id,

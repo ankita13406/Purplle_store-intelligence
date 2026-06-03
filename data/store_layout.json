@@ -1,211 +1,455 @@
 {
-  "STORE_BLR_002": {
-    "store_id": "STORE_BLR_002",
-    "name": "Brigade Road Bangalore",
-    "open_hours": {
-      "open": "10:00",
-      "close": "22:00"
+  "stores": [
+    {
+      "store_id": "STORE_BLR_002",
+      "store_name": "Purplle - Brigade Road",
+      "city": "Bangalore",
+      "open_hours": {
+        "monday": {
+          "open": "10:00",
+          "close": "21:30"
+        },
+        "tuesday": {
+          "open": "10:00",
+          "close": "21:30"
+        },
+        "wednesday": {
+          "open": "10:00",
+          "close": "21:30"
+        },
+        "thursday": {
+          "open": "10:00",
+          "close": "21:30"
+        },
+        "friday": {
+          "open": "10:00",
+          "close": "22:00"
+        },
+        "saturday": {
+          "open": "10:00",
+          "close": "22:00"
+        },
+        "sunday": {
+          "open": "11:00",
+          "close": "21:00"
+        }
+      },
+      "cameras": [
+        {
+          "camera_id": "BLR002_CAM_ENTRY_01",
+          "type": "entry_exit",
+          "clip_file": "entry-1.mp4",
+          "entry_threshold_y_pct": 0.55,
+          "coverage_zones": [
+            "ENTRY_ZONE"
+          ]
+        },
+        {
+          "camera_id": "BLR002_CAM_ENTRY_02",
+          "type": "entry_exit",
+          "clip_file": "entry-2.mp4",
+          "entry_threshold_y_pct": 0.55,
+          "coverage_zones": [
+            "ENTRY_ZONE"
+          ]
+        },
+        {
+          "camera_id": "BLR002_CAM_FLOOR_01",
+          "type": "main_floor",
+          "clip_file": "zone.mp4",
+          "coverage_zones": [
+            "SKINCARE",
+            "HAIRCARE",
+            "FRAGRANCE",
+            "MAKEUP"
+          ]
+        },
+        {
+          "camera_id": "BLR002_CAM_BILLING_01",
+          "type": "billing",
+          "clip_file": "billing-area.mp4",
+          "coverage_zones": [
+            "BILLING_AREA"
+          ]
+        }
+      ],
+      "zones": [
+        {
+          "zone_id": "ENTRY_ZONE",
+          "zone_name": "Entry / Exit Threshold",
+          "zone_type": "ENTRY",
+          "sku_zone": null,
+          "is_revenue_zone": false,
+          "camera_ids": [
+            "BLR002_CAM_ENTRY_01",
+            "BLR002_CAM_ENTRY_02"
+          ],
+          "polygon": [
+            [
+              0.0,
+              0.4
+            ],
+            [
+              1.0,
+              0.4
+            ],
+            [
+              1.0,
+              0.7
+            ],
+            [
+              0.0,
+              0.7
+            ]
+          ]
+        },
+        {
+          "zone_id": "SKINCARE",
+          "zone_name": "Skincare Zone",
+          "zone_type": "SHELF",
+          "sku_zone": "MOISTURISER",
+          "is_revenue_zone": true,
+          "camera_ids": [
+            "BLR002_CAM_FLOOR_01"
+          ],
+          "polygon": [
+            [
+              0.0,
+              0.1
+            ],
+            [
+              0.25,
+              0.1
+            ],
+            [
+              0.25,
+              0.65
+            ],
+            [
+              0.0,
+              0.65
+            ]
+          ]
+        },
+        {
+          "zone_id": "HAIRCARE",
+          "zone_name": "Haircare Zone",
+          "zone_type": "SHELF",
+          "sku_zone": "HAIRCARE_PRODUCTS",
+          "is_revenue_zone": true,
+          "camera_ids": [
+            "BLR002_CAM_FLOOR_01"
+          ],
+          "polygon": [
+            [
+              0.25,
+              0.1
+            ],
+            [
+              0.5,
+              0.1
+            ],
+            [
+              0.5,
+              0.65
+            ],
+            [
+              0.25,
+              0.65
+            ]
+          ]
+        },
+        {
+          "zone_id": "FRAGRANCE",
+          "zone_name": "Fragrance Zone",
+          "zone_type": "SHELF",
+          "sku_zone": "PERFUME",
+          "is_revenue_zone": true,
+          "camera_ids": [
+            "BLR002_CAM_FLOOR_01"
+          ],
+          "polygon": [
+            [
+              0.5,
+              0.1
+            ],
+            [
+              0.75,
+              0.1
+            ],
+            [
+              0.75,
+              0.65
+            ],
+            [
+              0.5,
+              0.65
+            ]
+          ]
+        },
+        {
+          "zone_id": "MAKEUP",
+          "zone_name": "Makeup Zone",
+          "zone_type": "SHELF",
+          "sku_zone": "MAKEUP_PRODUCTS",
+          "is_revenue_zone": true,
+          "camera_ids": [
+            "BLR002_CAM_FLOOR_01"
+          ],
+          "polygon": [
+            [
+              0.75,
+              0.1
+            ],
+            [
+              1.0,
+              0.1
+            ],
+            [
+              1.0,
+              0.65
+            ],
+            [
+              0.75,
+              0.65
+            ]
+          ]
+        },
+        {
+          "zone_id": "BILLING_AREA",
+          "zone_name": "Billing Counter",
+          "zone_type": "BILLING",
+          "sku_zone": null,
+          "is_revenue_zone": true,
+          "camera_ids": [
+            "BLR002_CAM_BILLING_01"
+          ],
+          "polygon": [
+            [
+              0.2,
+              0.5
+            ],
+            [
+              0.8,
+              0.5
+            ],
+            [
+              0.8,
+              1.0
+            ],
+            [
+              0.2,
+              1.0
+            ]
+          ]
+        }
+      ]
     },
-    "cameras": {
-      "CAM_ENTRY_01": "CAM 1.mp4",
-      "CAM_FLOOR_01": "CAM 2.mp4",
-      "CAM_BILLING_01": "CAM 3.mp4",
-      "CAM_FLOOR_02": "CAM 4.mp4",
-      "CAM_FLOOR_03": "CAM 5.mp4"
-    },
-    "zones": [
-      {
-        "zone_id": "ENTRY_THRESHOLD",
-        "cameras": [
-          "CAM_ENTRY_01"
-        ],
-        "polygon": [
-          [
-            0,
-            750
-          ],
-          [
-            1920,
-            750
-          ],
-          [
-            1920,
-            1080
-          ],
-          [
-            0,
-            1080
-          ]
-        ]
+    {
+      "store_id": "STORE_BLR_003",
+      "store_name": "Purplle - Koramangala",
+      "city": "Bangalore",
+      "open_hours": {
+        "monday": {
+          "open": "10:00",
+          "close": "21:30"
+        },
+        "tuesday": {
+          "open": "10:00",
+          "close": "21:30"
+        },
+        "wednesday": {
+          "open": "10:00",
+          "close": "21:30"
+        },
+        "thursday": {
+          "open": "10:00",
+          "close": "21:30"
+        },
+        "friday": {
+          "open": "10:00",
+          "close": "22:00"
+        },
+        "saturday": {
+          "open": "10:00",
+          "close": "22:00"
+        },
+        "sunday": {
+          "open": "11:00",
+          "close": "21:00"
+        }
       },
-      {
-        "zone_id": "SKINCARE",
-        "cameras": [
-          "CAM_FLOOR_01"
-        ],
-        "polygon": [
-          [
-            50,
-            50
-          ],
-          [
-            620,
-            50
-          ],
-          [
-            620,
-            520
-          ],
-          [
-            50,
-            520
+      "cameras": [
+        {
+          "camera_id": "BLR003_CAM1",
+          "type": "entry_exit",
+          "clip_file": "entry-1.mp4",
+          "entry_threshold_y_pct": 0.55,
+          "coverage_zones": [
+            "ENTRANCE"
           ]
-        ]
-      },
-      {
-        "zone_id": "HAIRCARE",
-        "cameras": [
-          "CAM_FLOOR_01"
-        ],
-        "polygon": [
-          [
-            650,
-            50
-          ],
-          [
-            1270,
-            50
-          ],
-          [
-            1270,
-            520
-          ],
-          [
-            650,
-            520
+        },
+        {
+          "camera_id": "BLR003_CAM2",
+          "type": "main_floor",
+          "clip_file": "zone.mp4",
+          "coverage_zones": [
+            "PURPLLE_MUM_1076_Z01",
+            "PURPLLE_MUM_1076_Z02",
+            "PURPLLE_MUM_1076_Z03"
           ]
-        ]
-      },
-      {
-        "zone_id": "FRAGRANCE",
-        "cameras": [
-          "CAM_FLOOR_01"
-        ],
-        "polygon": [
-          [
-            1300,
-            50
-          ],
-          [
-            1870,
-            50
-          ],
-          [
-            1870,
-            520
-          ],
-          [
-            1300,
-            520
+        },
+        {
+          "camera_id": "BLR003_CAM6",
+          "type": "billing",
+          "clip_file": "billing-area.mp4",
+          "coverage_zones": [
+            "PURPLLE_MUM_1076_Z_BILLING_01"
           ]
-        ]
-      },
-      {
-        "zone_id": "MAKEUP",
-        "cameras": [
-          "CAM_FLOOR_02"
-        ],
-        "polygon": [
-          [
-            50,
-            50
+        }
+      ],
+      "zones": [
+        {
+          "zone_id": "ENTRANCE",
+          "zone_name": "Store Entrance",
+          "zone_type": "ENTRY",
+          "sku_zone": null,
+          "is_revenue_zone": false,
+          "camera_ids": [
+            "BLR003_CAM1"
           ],
-          [
-            920,
-            50
-          ],
-          [
-            920,
-            520
-          ],
-          [
-            50,
-            520
+          "polygon": [
+            [
+              0.3,
+              0.7
+            ],
+            [
+              0.7,
+              0.7
+            ],
+            [
+              0.7,
+              1.0
+            ],
+            [
+              0.3,
+              1.0
+            ]
           ]
-        ]
-      },
-      {
-        "zone_id": "WELLNESS",
-        "cameras": [
-          "CAM_FLOOR_02"
-        ],
-        "polygon": [
-          [
-            950,
-            50
+        },
+        {
+          "zone_id": "PURPLLE_MUM_1076_Z01",
+          "zone_name": "Left Shelf",
+          "zone_type": "SHELF",
+          "sku_zone": "SKINCARE",
+          "is_revenue_zone": true,
+          "camera_ids": [
+            "BLR003_CAM2"
           ],
-          [
-            1870,
-            50
-          ],
-          [
-            1870,
-            520
-          ],
-          [
-            950,
-            520
+          "polygon": [
+            [
+              0.0,
+              0.1
+            ],
+            [
+              0.3,
+              0.1
+            ],
+            [
+              0.3,
+              0.9
+            ],
+            [
+              0.0,
+              0.9
+            ]
           ]
-        ]
-      },
-      {
-        "zone_id": "BILLING_AREA",
-        "cameras": [
-          "CAM_BILLING_01"
-        ],
-        "polygon": [
-          [
-            300,
-            300
+        },
+        {
+          "zone_id": "PURPLLE_MUM_1076_Z02",
+          "zone_name": "Center Display",
+          "zone_type": "DISPLAY",
+          "sku_zone": "FEATURED_PRODUCTS",
+          "is_revenue_zone": true,
+          "camera_ids": [
+            "BLR003_CAM2"
           ],
-          [
-            1620,
-            300
-          ],
-          [
-            1620,
-            1080
-          ],
-          [
-            300,
-            1080
+          "polygon": [
+            [
+              0.3,
+              0.3
+            ],
+            [
+              0.7,
+              0.3
+            ],
+            [
+              0.7,
+              0.8
+            ],
+            [
+              0.3,
+              0.8
+            ]
           ]
-        ]
-      },
-      {
-        "zone_id": "BILLING_QUEUE",
-        "cameras": [
-          "CAM_BILLING_01"
-        ],
-        "polygon": [
-          [
-            300,
-            600
+        },
+        {
+          "zone_id": "PURPLLE_MUM_1076_Z03",
+          "zone_name": "Lipstick Aisle",
+          "zone_type": "SHELF",
+          "sku_zone": "LIPSTICK",
+          "is_revenue_zone": true,
+          "camera_ids": [
+            "BLR003_CAM2"
           ],
-          [
-            1620,
-            600
-          ],
-          [
-            1620,
-            1080
-          ],
-          [
-            300,
-            1080
+          "polygon": [
+            [
+              0.7,
+              0.1
+            ],
+            [
+              1.0,
+              0.1
+            ],
+            [
+              1.0,
+              0.9
+            ],
+            [
+              0.7,
+              0.9
+            ]
           ]
-        ]
-      }
-    ]
-  }
+        },
+        {
+          "zone_id": "PURPLLE_MUM_1076_Z_BILLING_01",
+          "zone_name": "Billing Counter Queue",
+          "zone_type": "BILLING",
+          "sku_zone": null,
+          "is_revenue_zone": true,
+          "camera_ids": [
+            "BLR003_CAM6"
+          ],
+          "polygon": [
+            [
+              0.1,
+              0.4
+            ],
+            [
+              0.9,
+              0.4
+            ],
+            [
+              0.9,
+              1.0
+            ],
+            [
+              0.1,
+              1.0
+            ]
+          ]
+        }
+      ]
+    }
+  ]
 }

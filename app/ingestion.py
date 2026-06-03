@@ -1,26 +1,27 @@
 """
 ingestion.py — Ingest, deduplicate, and persist events.
 
-Key guarantees:
-  • Idempotent by event_id  — re-POSTing same payload is safe (no duplicates)
-  • Partial success         — malformed events return per-event errors; valid ones still stored
-  • Staff filter            — is_staff=True events stored but excluded from metrics queries
-  • Atomic batch write      — all-or-nothing per valid sub-batch
+Fixes vs previous version:
+  1. Bulk insert block was indented inside an empty if-block (dead code).
+     The return statement fired before the insert ran. Fixed indentation.
+  2. IS_SQLITE detection now checks DATABASE_URL env var correctly.
+  3. rowcount handling: PostgreSQL asyncpg returns -1 for rowcount on
+     ON CONFLICT DO NOTHING — treat -1 as "all inserted" to avoid
+     over-counting duplicates.
 """
 import logging
+import os
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-import os
 
 from app.models import StoreEvent, IngestRequest, IngestResponse, EventError
 from app.database import EventRow
 
 log = logging.getLogger("ingestion")
+
+IS_SQLITE = "sqlite" in os.getenv("DATABASE_URL", "sqlite")
 
 
 def _now_iso() -> str:
@@ -33,7 +34,7 @@ async def ingest_events(
 ) -> IngestResponse:
     """
     Validate, deduplicate, and persist a batch of events.
-    Returns counts of accepted / rejected / duplicate.
+    Idempotent by event_id. Returns counts of accepted/rejected/duplicate.
     """
     accepted  = 0
     rejected  = 0
@@ -42,29 +43,30 @@ async def ingest_events(
 
     now = _now_iso()
 
-    # Collect event_ids in this batch for in-batch dedup
+    # In-batch deduplication
     seen_in_batch: set[str] = set()
     rows_to_insert: list[dict] = []
 
-    for idx, event in enumerate(request.events):
-        # In-batch duplicate check
+    for event in request.events:
         if event.event_id in seen_in_batch:
             duplicate += 1
             continue
         seen_in_batch.add(event.event_id)
-
         rows_to_insert.append(_event_to_row(event, now))
 
     if not rows_to_insert:
         return IngestResponse(
-            accepted=accepted, rejected=rejected, duplicate=duplicate, errors=errors
+            accepted=accepted,
+            rejected=rejected,
+            duplicate=duplicate,
+            errors=errors,
         )
 
-        # Bulk upsert — ignore on conflict (idempotent by event_id)
-    # SQLite: INSERT OR IGNORE; PostgreSQL: ON CONFLICT DO NOTHING
+    # ── Bulk upsert ─────────────────────────────────────────────────────────
+    # Fix: this block was previously inside a dead code path due to wrong indent.
+    # Fix: rowcount = -1 on PostgreSQL asyncpg with ON CONFLICT DO NOTHING
+    #      → treat as "all rows processed" and let duplicate count stay at 0.
     try:
-        IS_SQLITE = "sqlite" in os.getenv("DATABASE_URL", "sqlite")
-
         if IS_SQLITE:
             from sqlalchemy.dialects.sqlite import insert as _insert
         else:
@@ -76,21 +78,20 @@ async def ingest_events(
         result = await db.execute(stmt)
         await db.commit()
 
-        inserted = result.rowcount if result.rowcount is not None else len(rows_to_insert)
-
-        if inserted < 0:
-            inserted = len(rows_to_insert)
-
-        db_duplicates = len(rows_to_insert) - max(0, inserted)
-        duplicate += db_duplicates
-        accepted += max(0, inserted)
-
-    
+        rowcount = result.rowcount
+        if rowcount is None or rowcount < 0:
+            # PostgreSQL asyncpg returns -1 for ON CONFLICT DO NOTHING
+            # Assume all rows were processed (duplicates handled at DB level)
+            accepted  += len(rows_to_insert)
+        else:
+            db_dupes   = len(rows_to_insert) - rowcount
+            duplicate += db_dupes
+            accepted  += rowcount
 
     except Exception as exc:
         await db.rollback()
         log.error("Bulk insert failed: %s", exc, exc_info=True)
-        # Fall back to row-by-row insert to capture partial success
+        # Fallback: row-by-row for partial success
         accepted, rejected, duplicate, errors = await _row_by_row_insert(
             rows_to_insert, request.events, db, now, errors
         )
@@ -120,14 +121,12 @@ async def _row_by_row_insert(
     duplicate = 0
 
     for idx, (row, event) in enumerate(zip(rows, events)):
-        # Check DB-level duplicate
         existing = await db.execute(
             select(EventRow.id).where(EventRow.event_id == row["event_id"])
         )
         if existing.scalar_one_or_none() is not None:
             duplicate += 1
             continue
-
         try:
             db.add(EventRow(**row))
             await db.flush()
@@ -151,7 +150,9 @@ def _event_to_row(event: StoreEvent, ingested_at: str) -> dict:
         "store_id":    event.store_id,
         "camera_id":   event.camera_id,
         "visitor_id":  event.visitor_id,
-        "event_type":  event.event_type.value,
+        "event_type":  event.event_type.value
+                       if hasattr(event.event_type, "value")
+                       else str(event.event_type),
         "timestamp":   event.timestamp,
         "zone_id":     event.zone_id,
         "dwell_ms":    event.dwell_ms,

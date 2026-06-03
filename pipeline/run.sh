@@ -1,85 +1,115 @@
 #!/usr/bin/env bash
-# run.sh — Process all CCTV clips and stream events into the API
-# Usage: bash pipeline/run.sh [--clips-dir data/clips] [--live]
+# pipeline/run.sh
+# ═══════════════════════════════════════════════════════════════════════════
+# Processes ALL CCTV clips for both stores and emits structured events.
+# Usage: bash pipeline/run.sh
+# Output: data/events/<store_id>_<camera_id>.jsonl + data/events_all.jsonl
+# ═══════════════════════════════════════════════════════════════════════════
+
 set -euo pipefail
 
-CLIPS_DIR="${CLIPS_DIR:-data/clips}"
-LAYOUT="${LAYOUT:-data/store_layout.json}"
-OUTPUT="${OUTPUT:-data/events.jsonl}"
-MODEL="${MODEL:-yolov8s.pt}"
-API_ENDPOINT="${API_ENDPOINT:-http://localhost:8000}"
-LIVE="${LIVE:-false}"
+LAYOUT="data/store_layout.json"
+OUTPUT="data/events/"
+CLIPS_DIR="data/clips"
+MERGED="data/events_all.jsonl"
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --clips-dir) CLIPS_DIR="$2"; shift 2 ;;
-    --layout)    LAYOUT="$2";    shift 2 ;;
-    --output)    OUTPUT="$2";    shift 2 ;;
-    --model)     MODEL="$2";     shift 2 ;;
-    --live)      LIVE="true";    shift   ;;
-    *) echo "Unknown arg: $1"; exit 1 ;;
-  esac
-done
+mkdir -p "$OUTPUT"
 
-echo "================================================"
-echo "  Purplle Store Intelligence — Detection Pipeline"
-echo "================================================"
-echo "  Clips dir : $CLIPS_DIR"
-echo "  Layout    : $LAYOUT"
-echo "  Output    : $OUTPUT"
-echo "  Model     : $MODEL"
-echo "  Live feed : $LIVE"
+echo "═══════════════════════════════════════════════════════"
+echo " Purplle Store Intelligence — Detection Pipeline"
+echo " Processing both stores: ST1008 (Bangalore) + ST1076 (Mumbai)"
+echo "═══════════════════════════════════════════════════════"
+
+# ── STORE 1: ST1008 — Brigade Road, Bangalore ──────────────────────────────
+STORE1="ST1008"
+STORE1_DIR="${CLIPS_DIR}/ST1008"
 echo ""
+echo "▶ Processing ${STORE1} clips..."
 
-# Validate inputs
-if [ ! -d "$CLIPS_DIR" ]; then
-  echo "ERROR: clips directory not found: $CLIPS_DIR"
-  exit 1
-fi
-if [ ! -f "$LAYOUT" ]; then
-  echo "ERROR: layout file not found: $LAYOUT"
-  exit 1
+if [ -f "${STORE1_DIR}/entry-1.mp4" ]; then
+    python pipeline/detect.py \
+        --clip "${STORE1_DIR}/entry-1.mp4" \
+        --store_id "$STORE1" \
+        --camera_id "ST1008_CAM_ENTRY_01" \
+        --layout "$LAYOUT" --output "$OUTPUT" \
+        --clip_start "2026-04-10T12:00:00"
+    echo "  ✓ entry-1 processed"
 fi
 
-mkdir -p "$(dirname "$OUTPUT")"
-
-# Build API endpoint arg
-API_ARG=""
-if [ "$LIVE" = "true" ]; then
-  API_ARG="--api-endpoint $API_ENDPOINT"
-  echo "  Waiting for API to be ready..."
-  for i in $(seq 1 20); do
-    if curl -sf "$API_ENDPOINT/health" > /dev/null 2>&1; then
-      echo "  API is ready."
-      break
-    fi
-    sleep 1
-  done
+if [ -f "${STORE1_DIR}/entry-2.mp4" ]; then
+    python pipeline/detect.py \
+        --clip "${STORE1_DIR}/entry-2.mp4" \
+        --store_id "$STORE1" \
+        --camera_id "ST1008_CAM_ENTRY_02" \
+        --layout "$LAYOUT" --output "$OUTPUT" \
+        --clip_start "2026-04-10T12:00:00"
+    echo "  ✓ entry-2 processed"
 fi
 
-echo ""
-echo "Starting detection pipeline..."
-python pipeline/detect.py \
-  --clips-dir  "$CLIPS_DIR" \
-  --layout     "$LAYOUT" \
-  --output     "$OUTPUT" \
-  --model      "$MODEL" \
-  $API_ARG
-
-echo ""
-echo "Detection complete. Events written to: $OUTPUT"
-echo ""
-
-# If not live, replay the JSONL into the API in batches
-if [ "$LIVE" = "false" ] && curl -sf "$API_ENDPOINT/health" > /dev/null 2>&1; then
-  echo "Replaying events into API..."
-  python pipeline/replay.py --events "$OUTPUT" --api "$API_ENDPOINT"
-  echo "Replay complete."
+if [ -f "${STORE1_DIR}/zone.mp4" ]; then
+    python pipeline/detect.py \
+        --clip "${STORE1_DIR}/zone.mp4" \
+        --store_id "$STORE1" \
+        --camera_id "ST1008_CAM_FLOOR_01" \
+        --layout "$LAYOUT" --output "$OUTPUT" \
+        --clip_start "2026-04-10T12:00:00"
+    echo "  ✓ zone processed"
 fi
 
+if [ -f "${STORE1_DIR}/billing-area.mp4" ]; then
+    python pipeline/detect.py \
+        --clip "${STORE1_DIR}/billing-area.mp4" \
+        --store_id "$STORE1" \
+        --camera_id "ST1008_CAM_BILLING_01" \
+        --layout "$LAYOUT" --output "$OUTPUT" \
+        --clip_start "2026-04-10T12:00:00"
+    echo "  ✓ billing-area processed"
+fi
+
+# ── STORE 2: ST1076 — Mumbai ───────────────────────────────────────────────
+STORE2="ST1076"
+STORE2_DIR="${CLIPS_DIR}/ST1076"
 echo ""
-echo "================================================"
-echo "  Pipeline finished."
-echo "  Dashboard: $API_ENDPOINT/dashboard"
-echo "  Metrics:   $API_ENDPOINT/stores/STORE_BLR_002/metrics"
-echo "================================================"
+echo "▶ Processing ${STORE2} clips..."
+
+if [ -f "${STORE2_DIR}/entry-1.mp4" ]; then
+    python pipeline/detect.py \
+        --clip "${STORE2_DIR}/entry-1.mp4" \
+        --store_id "$STORE2" \
+        --camera_id "PURPLLE_MUM_1076_CAM1" \
+        --layout "$LAYOUT" --output "$OUTPUT" \
+        --clip_start "2026-03-08T18:00:00"
+    echo "  ✓ entry-1 processed"
+fi
+
+if [ -f "${STORE2_DIR}/zone.mp4" ]; then
+    python pipeline/detect.py \
+        --clip "${STORE2_DIR}/zone.mp4" \
+        --store_id "$STORE2" \
+        --camera_id "PURPLLE_MUM_1076_CAM2" \
+        --layout "$LAYOUT" --output "$OUTPUT" \
+        --clip_start "2026-03-08T18:00:00"
+    echo "  ✓ zone processed"
+fi
+
+if [ -f "${STORE2_DIR}/billing-area.mp4" ]; then
+    python pipeline/detect.py \
+        --clip "${STORE2_DIR}/billing-area.mp4" \
+        --store_id "$STORE2" \
+        --camera_id "PURPLLE_MUM_1076_CAM6" \
+        --layout "$LAYOUT" --output "$OUTPUT" \
+        --clip_start "2026-03-08T18:00:00"
+    echo "  ✓ billing-area processed"
+fi
+
+# ── Merge all events → single sorted JSONL ────────────────────────────────
+echo ""
+echo "▶ Merging all events → ${MERGED}"
+python pipeline/merge_events.py "$OUTPUT" "$MERGED"
+
+echo ""
+echo "═══════════════════════════════════════════════════════"
+echo " ✓ Detection complete"
+echo " Events: ${MERGED}"
+echo " Feed into API: python pipeline/replay.py --input ${MERGED} --speed 10"
+echo "═══════════════════════════════════════════════════════"
