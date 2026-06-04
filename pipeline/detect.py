@@ -387,8 +387,8 @@ class EventEmitter:
             "timestamp":  timestamp,
             "zone_id":    zone_id,
             "dwell_ms":   dwell_ms,
-            "is_staff":   is_staff,
-            "confidence": round(float(confidence), 3),
+            "is_staff": bool(is_staff),
+           "confidence": float(round(float(confidence), 3)),
             "metadata": {
                 "queue_depth": queue_depth,
                 "sku_zone":    sku_zone,
@@ -469,7 +469,8 @@ def process_clip(clip_path: str, store_id: str, camera_id: str,
     billing_occupants: dict[str, bool] = {}  # visitor_id → currently in billing
 
     model   = YOLO("yolov8s.pt") if YOLO_AVAILABLE else None
-    tracker = sv.ByteTracker() if SV_AVAILABLE else None
+    tracker = sv.ByteTrack() if SV_AVAILABLE else None
+    
 
     frame_num = 0
     while True:
