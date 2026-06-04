@@ -28,7 +28,7 @@ bash pipeline/run.sh \
   --live
 
 # 5. Open the live dashboard
-open http://localhost:8000/dashboard
+open http://localhost:3000
 ```
 
 > **API is ready when:** `curl http://localhost:8000/health` returns `{"status":"ok",...}`
@@ -80,8 +80,6 @@ docker compose up --build
 This starts:
 - `api` on port **8000** (FastAPI + PostgreSQL)
 - `db` (PostgreSQL 16)
-
-The live dashboard is served by the API at **http://localhost:8000/dashboard** — no separate container needed.
 
 Wait for:
 ```
@@ -175,11 +173,24 @@ curl -X POST http://localhost:8000/events/ingest \
 
 ### Step 7 — Open the live dashboard
 
-Navigate to **http://localhost:8000/dashboard** in your browser.
+Open **`dashboard/index.html`** directly in your browser, or serve it locally:
 
-The dashboard polls all API endpoints every 5 seconds and updates live. Use the store selector (top-right) to switch between:
+```bash
+# Option A — open the file directly
+start dashboard/index.html        # Windows
+open  dashboard/index.html        # macOS
+xdg-open dashboard/index.html     # Linux
+
+# Option B — serve on port 3000 (avoids any file:// fetch restrictions)
+npx serve dashboard -l 3000
+# then open http://localhost:3000
+```
+
+The dashboard is a standalone HTML file — no separate container or build step required. It polls all API endpoints every 5 seconds and updates live. Use the store selector (top-right) to switch between:
 - **STORE_BLR_002 — Brigade Road** (27 visitors, 18.52% conversion on 2026-06-03)
 - **STORE_BLR_003 — Koramangala** (33 visitors, 18.18% conversion on 2026-06-03)
+
+> **Note:** If you open `index.html` directly via `file://` and see no data, use Option B (`npx serve`) to avoid browser CORS restrictions on local `fetch()` calls to `localhost:8000`.
 
 ---
 
@@ -227,7 +238,6 @@ pytest tests/test_anomalies.py -v
 | `/stores/{id}/heatmap` | GET | Zone visit frequency + avg dwell, normalised 0–100 |
 | `/stores/{id}/anomalies` | GET | Active anomalies with severity + suggested actions |
 | `/health` | GET | DB status, per-store feed freshness, stale feed detection |
-| `/dashboard` | GET | Live dashboard HTML (served by FastAPI) |
 | `/docs` | GET | Auto-generated Swagger UI |
 
 All responses are JSON. Returns HTTP 503 (not 500) when the database is unavailable.
@@ -285,8 +295,10 @@ POST /events/ingest     app/ingestion.py
               │
               ▼
          dashboard/index.html
-         Served by FastAPI at /dashboard.
-         Polls every 5s. Store selector switches between both stores.
+         Standalone HTML file — open directly in browser or serve with
+         `npx serve dashboard -l 3000` → http://localhost:3000
+         Polls all API endpoints every 5s. Store selector switches
+         between STORE_BLR_002 and STORE_BLR_003.
 ```
 
 ---
@@ -318,7 +330,7 @@ store-intelligence/
 │   ├── pos_loader.py      # POS CSV loader (pipeline-side)
 │   └── run.sh             # One-command pipeline runner (both stores)
 ├── app/
-│   ├── main.py            # FastAPI app, middleware, routes, /dashboard endpoint
+│   ├── main.py            # FastAPI app, middleware, routes
 │   ├── models.py          # Pydantic v2 schemas
 │   ├── database.py        # SQLAlchemy async engine
 │   ├── ingestion.py       # Idempotent ingest + deduplication
@@ -337,7 +349,7 @@ store-intelligence/
 │   ├── restamp_and_replay.py   # Re-timestamp historical events for replay
 │   └── ...                     # Other utility scripts
 ├── dashboard/
-│   └── index.html         # Live polling dashboard (served at /dashboard)
+│   └── index.html         # Standalone live dashboard — open in browser or serve locally
 ├── docs/
 │   ├── DESIGN.md          # Architecture + AI-assisted decisions
 │   └── CHOICES.md         # 3 engineering decisions with full reasoning
@@ -362,7 +374,7 @@ store-intelligence/
 - The pipeline infers store ID and camera ID from clip filenames (`STORE_BLR_002_CAM_ENTRY_01_*.mp4`).
 - The detection pipeline runs on CPU without GPU — YOLOv8s processes at reduced fps with frame skipping.
 - All API endpoints handle zero-traffic stores correctly — they return zeros, not null or 500 errors.
-- The dashboard is served at `/dashboard` by FastAPI — no separate port or container required.
+- **The dashboard is `dashboard/index.html`** — a standalone HTML file, not served by FastAPI. Open it directly in a browser or run `npx serve dashboard -l 3000`. If you hit CORS errors opening via `file://`, use `npx serve`.
 - **Stale feed warnings** appear in `/anomalies` when replaying historical footage — correct and expected behaviour. In production with live feeds this surfaces genuine camera failures.
 - Metrics use a **busiest-day window** (date with most events, not `MAX(timestamp)`) so late-night events spilling into the next calendar date do not cause the day's metrics to report as zero.
 - The idempotency guarantee is tested in `tests/test_api.py::TestIngest::test_ingest_idempotent_duplicate`.
