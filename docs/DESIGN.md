@@ -48,8 +48,9 @@ POST /events/ingest        app/ingestion.py
               │
               ▼
          dashboard/index.html
-         Served by FastAPI at GET /dashboard — no separate container.
-         Polls all endpoints every 5 seconds.
+         Standalone HTML file. Open directly in browser or serve with
+         `npx serve dashboard -l 3000` → http://localhost:3000
+         Polls all API endpoints every 5s.
          Store selector switches between STORE_BLR_002 and STORE_BLR_003.
 ```
 
@@ -131,7 +132,20 @@ This selects the trading day with the most events, making metrics robust to late
 
 ### Dashboard Architecture
 
-The dashboard (`dashboard/index.html`) is served directly by FastAPI at the `/dashboard` route via `HTMLResponse`. It polls all API endpoints every 5 seconds via browser `fetch()`. This eliminates the need for a separate dashboard container, simplifies `docker compose up`, and avoids CORS issues that arise when opening HTML as a `file://` URL. The store selector allows switching between `STORE_BLR_002` and `STORE_BLR_003` without a page reload.
+The dashboard is `dashboard/index.html` — a standalone HTML file with inline CSS and JavaScript. It requires no build step, no separate container, and no FastAPI route. Reviewers open it directly in a browser or serve it locally:
+
+```bash
+# Direct open (may hit CORS restrictions in some browsers)
+start dashboard/index.html    # Windows
+open  dashboard/index.html    # macOS
+
+# Local server on port 3000 (avoids file:// CORS restrictions)
+npx serve dashboard -l 3000
+```
+
+The dashboard polls all API endpoints (`/metrics`, `/funnel`, `/heatmap`, `/anomalies`, `/health`) every 5 seconds via browser `fetch()` directed at `http://localhost:8000`. It handles connection errors gracefully and retries on each poll cycle, so the page loads and waits even before the API container is fully ready. The store selector switches between `STORE_BLR_002` and `STORE_BLR_003` without a page reload.
+
+This approach keeps `docker compose up` to exactly two services (api + db), eliminates CORS issues that arise when serving HTML from a different origin than the API, and means the dashboard is inspectable as a plain text file with no compiled assets.
 
 ### Production Readiness
 
