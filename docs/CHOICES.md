@@ -85,11 +85,29 @@ AI also suggested Redis caching for `/metrics` responses. I chose not to impleme
 
 **Async FastAPI + PostgreSQL (asyncpg) + SQLAlchemy 2.0.** FastAPI's async handling means slow ingest batches do not block concurrent `/metrics` reads. `ON CONFLICT DO NOTHING` makes `POST /events/ingest` idempotent as a single SQL primitive with no application-level race conditions.
 
-The dashboard is served directly by FastAPI at `/dashboard` via `HTMLResponse` — no separate Nginx, Node, or dashboard container. This simplifies `docker compose up` to two services (api + db) and eliminates CORS issues from opening HTML as a `file://` URL.
+---
+
+## Decision 4: Dashboard — Standalone HTML File
+
+### Options Considered
+
+| Option | Pros | Cons |
+|--------|------|------|
+| Serve from FastAPI (`/dashboard` route) | Single container, no CORS issues | Couples frontend to API container; reviewers must run Docker to see the dashboard |
+| Separate dashboard container (Nginx/Node) | Clean separation | Adds a third service to `docker-compose.yml`; more setup friction |
+| Standalone `index.html` (static file) | Zero build step, opens instantly, no extra container | `file://` fetch to `localhost:8000` may hit CORS in some browsers |
+
+### What I Chose and Why
+
+**Standalone `dashboard/index.html`.** The dashboard is a single HTML file with inline CSS and JavaScript. Reviewers can open it directly in a browser (`start dashboard/index.html` on Windows, `open` on macOS) or serve it on port 3000 with `npx serve dashboard -l 3000` to avoid any `file://` CORS friction.
+
+This eliminates an entire Docker service and a FastAPI route, keeps `docker compose up` to exactly two services (api + db), and means the dashboard works even before the API container is fully initialised — the polling loop gracefully handles connection errors and retries every 5 seconds.
+
+The store selector allows switching between `STORE_BLR_002` and `STORE_BLR_003` without a page reload. All data is fetched live from `http://localhost:8000` on each poll cycle.
 
 ---
 
-## Decision 4: Metrics Date Window — Busiest Day vs MAX Timestamp
+## Decision 5: Metrics Date Window — Busiest Day vs MAX Timestamp
 
 ### The Problem
 
