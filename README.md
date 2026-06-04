@@ -28,7 +28,7 @@ bash pipeline/run.sh \
   --live
 
 # 5. Open the live dashboard
-open http://localhost:3000
+start http://localhost:3000
 ```
 
 > **API is ready when:** `curl http://localhost:8000/health` returns `{"status":"ok",...}`
