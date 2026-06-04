@@ -26,8 +26,7 @@ bash pipeline/run.sh --clips-dir data/clips --layout data/store_layout.json \
 
 # 5. Open the live dashboard
 open http://localhost:3000
-# Or check the API directly:
-curl http://localhost:8000/stores/ST1008/metrics
+
 ```
 
 > **API is ready when:** `curl http://localhost:8000/health` returns `{"status":"ok",...}`
